@@ -36,17 +36,49 @@ class SignIn extends React.Component {
   }
 
   async onSubmitForm(e) {
-    e.preventDefault();
-    console.log('Form Submitted');
-    this.setState({ stage: 1 });
+      e.preventDefault();
+      try {
+          const userObject = await Auth.signIn(
+              this.state.email.replace(/[@.]/g, '|'),
+              this.state.password
+          );
+          console.log('userObject', userObject);
+          if (userObject.challengeName) {
+              // Auth challenges are pending prior to token issuance
+              this.setState({ userObject, stage: 1 });
+          } else {
+              // No remaining auth challenges need to be satisfied
+              const session = await Auth.currentSession();
+              // console.log('Cognito User Access Token:', session.getAccessToken().getJwtToken());
+              console.log('Cognito User Identity Token:', session.getIdToken().getJwtToken());
+              // console.log('Cognito User Refresh Token', session.getRefreshToken().getToken());
+              this.setState({ stage: 0, email: '', password: '', code: '' });
+              this.props.history.replace('/app');
+          }
+      } catch (err) {
+          alert(err.message);
+          console.error('Auth.signIn(): ', err);
+      }
   }
 
   async onSubmitVerification(e) {
-    e.preventDefault();
-    console.log('Verification Submitted');
-    this.setState({ stage: 0, email: '', password: '', code: '' });
-    // Go back home
-    this.props.history.replace('/');
+      e.preventDefault();
+      try {
+          const data = await Auth.confirmSignIn(
+          this.state.userObject,
+          this.state.code
+          );
+          console.log('Cognito User Data:', data);
+          const session = await Auth.currentSession();
+          // console.log('Cognito User Access Token:', session.getAccessToken().getJwtToken());
+          console.log('Cognito User Identity Token:', session.getIdToken().getJwtToken());
+          // console.log('Cognito User Refresh Token', session.getRefreshToken().getToken());
+          this.setState({ stage: 0, email: '', password: '', code: '' });
+          this.props.history.replace('/app');
+      } catch (err) {
+          alert(err.message);
+          console.error('Auth.confirmSignIn(): ', err);
+      }
   }
 
   onEmailChanged(e) {
